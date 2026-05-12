@@ -1,5 +1,5 @@
 const express = require('express');
-const { GoogleGenerativeAI } = require("@google/genai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 require('dotenv').config();
 
 const app = express();
@@ -16,27 +16,25 @@ app.post('/verify', async (req, res) => {
   try {
     const { name, phone, address } = req.body;
 
-    // 2. This is the fix: use 'getGenerativeModel' instead of 'models.get'
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
-    const prompt = `Analyze this Bangladeshi e-commerce order for fraud:
-    Name: ${name}
-    Phone: ${phone}
-    Address: ${address}
-    Check for: random strings (xxxx, asdf), fake addresses (hahaha), and test orders.
-    Output ONLY JSON: {"score": 0-100, "reason": "why", "action": "approve/hold/reject"}`;
+    const prompt = `Analyze this order: Name: ${name}, Phone: ${phone}, Address: ${address}. 
+    Check for fake info. Output ONLY JSON: {"score": 0-100, "reason": "why", "action": "approve/hold/reject"}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text().replace(/```json|```/g, ""); // Cleans the AI output
+    let text = response.text();
+    
+    // This cleans the AI response in case it adds extra symbols
+    text = text.replace(/```json|```/g, "").trim();
     
     res.json(JSON.parse(text));
 
   } catch (error) {
-    console.error("LOG ERROR:", error); // This helps you see the real error in Render logs
+    console.error("AI Error:", error);
     res.status(500).json({ error: "AI is sleeping. Try again." });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`FraudShield running on ${PORT}`));
+app.listen(PORT, () => console.log(`Running on ${PORT}`));
