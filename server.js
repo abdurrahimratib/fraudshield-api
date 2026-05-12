@@ -5,30 +5,47 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
-// 1. Use the correct Model ID for 2026
+// 1. Initialize the AI with your Render Environment Variable
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.get('/', (req, res) => {
   res.send('FraudShield Factory is Online! 🛡️');
 });
 
+// THE VERIFICATION GATE
 app.post('/verify', async (req, res) => {
   try {
     const { name, phone, address } = req.body;
 
-    // FIX: Using the newest flash model name
+    // Using the stable 2026 model name
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     
-    const prompt = `You are FraudShield, a fraud detection bot for Bangladesh.
-    Order Info: Name: ${name}, Phone: ${phone}, Address: ${address}.
+    // UPDATED PROMPT: 10 is High (Good), 1 is Low (Fraud)
+    const prompt = `You are FraudShield, an expert fraud detection agent for Bangladeshi E-commerce.
     
-    Task: Is this a fake order? Look for "test", "asdf", "hahaha", or random letters.
-    Output ONLY JSON: {"score": 0-100, "reason": "...", "action": "approve/hold/reject"}`;
+    Order Details:
+    Name: ${name}
+    Phone: ${phone}
+    Address: ${address}
+    
+    INSTRUCTIONS:
+    1. Assess if this is a real customer or a fake/test order.
+    2. Give a Trust Score from 1 to 10.
+       - 10: Definitely a real customer.
+       - 1: Obvious fraud, gibberish (asdf, xoxo), or test data (hahaha, test123).
+    3. Action Logic:
+       - Score 8-10: "approve"
+       - Score 4-7: "hold" (needs manual call)
+       - Score 1-3: "reject"
+    
+    Output ONLY a raw JSON object:
+    {"score": number, "reason": "short explanation in english", "action": "approve/hold/reject"}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     let text = response.text().replace(/```json|```/g, "").trim();
     
+    // Send the decision back to your website
     res.json(JSON.parse(text));
 
   } catch (error) {
@@ -38,4 +55,4 @@ app.post('/verify', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`FraudShield active on ${PORT}`));
+app.listen(PORT, () => console.log(`FraudShield Logic active on port ${PORT}`));
